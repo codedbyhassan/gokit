@@ -56,31 +56,231 @@ The project follows a **bounded intelligence** principle:
 - Fuzz tests and benchmarks
 - CI for formatting, vetting, tests, race detection, and fuzz smoke coverage
 
-## Quick start
+## Local development
+
+GoKit is a Go application and library, not a Node/npm frontend project. The browser interface is embedded into the Go binary, so there is **no frontend package installation, npm install, or separate frontend dev server**.
 
 ### Requirements
 
 - Go 1.24+
 - Git
+- A C compiler is required on Windows if you want to run Go's race detector with `go test -race`.
 
-Clone the repository:
+### Clone the repository
 
 ```bash
 git clone https://github.com/codedbyhassan/gokit.git
 cd gokit
 ```
 
-Run the test suite:
+### 1. Verify the Go environment
+
+```bash
+go version
+go env CGO_ENABLED
+```
+
+The normal test suite and `go vet` do not require CGO. On Windows, `go test -race` does.
+
+### 2. Run the normal test suite
 
 ```bash
 go test ./...
 ```
 
-Run the complete quality checks:
+This is the first check to run after cloning or pulling changes.
+
+### 3. Run static analysis
+
+```bash
+go vet ./...
+```
+
+### 4. Run race detection
+
+The race detector requires CGO and a working C compiler.
+
+On Windows, one supported setup is [MSYS2](https://www.msys2.org/) with the UCRT64 MinGW GCC toolchain.
+
+Open **MSYS2 UCRT64** (not PowerShell) and install/update the toolchain:
+
+```bash
+pacman -Syu
+```
+
+If MSYS2 asks you to close the terminal, reopen **MSYS2 UCRT64** and run:
+
+```bash
+pacman -Su
+pacman -S --needed mingw-w64-ucrt-x86_64-gcc
+```
+
+Make sure `gcc.exe` is available to Windows. The default UCRT64 location is:
+
+```text
+C:\msys64\ucrt64\bin
+```
+
+Add that directory to your Windows PATH, then open a **new PowerShell** and verify:
+
+```powershell
+gcc --version
+```
+
+Enable CGO for the current PowerShell session and run the race tests:
+
+```powershell
+$env:CGO_ENABLED="1"
+go test -race ./...
+```
+
+If PowerShell reports `gcc is not recognized`, GCC is either not installed or `C:\msys64\ucrt64\bin` is not on PATH.
+
+### 5. Run the complete local quality check
+
+The repository Makefile combines formatting, vetting, and tests:
 
 ```bash
 make check
 ```
+
+The individual commands are still useful when diagnosing a failure:
+
+```bash
+go test ./...
+go vet ./...
+go test -race ./...
+```
+
+### 6. Start the web application
+
+The recommended development mode is the embedded web application:
+
+```bash
+go run ./cmd/gokit --web --addr :8080
+```
+
+Then open:
+
+```text
+http://localhost:8080
+```
+
+The same Go process serves the browser frontend and the API. **Do not start `--serve` separately when using `--web`.**
+
+The browser application provides:
+
+- Natural-language input
+- Live GoKit execution
+- Confidence and assumptions
+- Explainable execution steps
+- Copy and save actions
+- Local history
+- Saved results
+- Dark/light theme preference
+- Responsive mobile layout
+
+Browser data is stored in **IndexedDB**. GoKit does not require an online database or account for the web experience.
+
+### 7. Test the HTTP API directly
+
+If you specifically want API-only mode instead of the browser application:
+
+```bash
+go run ./cmd/gokit --serve --addr :8080
+```
+
+Then, in another terminal:
+
+```bash
+curl -X POST http://localhost:8080/v1/interpret \
+  -H 'Content-Type: application/json' \
+  -d '{"input":"what is 20% of 500"}'
+```
+
+On PowerShell, the equivalent is:
+
+```powershell
+Invoke-RestMethod `
+  -Uri "http://localhost:8080/v1/interpret" `
+  -Method Post `
+  -ContentType "application/json" `
+  -Body '{"input":"what is 20% of 500"}'
+```
+
+Health check:
+
+```text
+http://localhost:8080/health
+```
+
+### 8. Run the CLI directly
+
+The CLI can interpret a single request without starting a server:
+
+```powershell
+go run ./cmd/gokit "what is 20% of 500"
+```
+
+Other examples:
+
+```powershell
+go run ./cmd/gokit "convert 10 miles to km"
+go run ./cmd/gokit "how old is someone born 11-11-2011"
+go run ./cmd/gokit "five kilograms plus two hundred grams"
+```
+
+See the available commands and flags with:
+
+```powershell
+go run ./cmd/gokit --help
+```
+
+Current server flags include:
+
+```text
+-addr string
+      HTTP listen address (default ":8080")
+-serve
+      start the GoKit HTTP API
+-web
+      start the GoKit web frontend
+```
+
+### Recommended development workflow
+
+For day-to-day development, use this sequence:
+
+```text
+Clone / pull changes
+      ↓
+go test ./...
+      ↓
+go vet ./...
+      ↓
+go test -race ./...
+      ↓
+go run ./cmd/gokit --web --addr :8080
+      ↓
+Test the browser UI
+      ↓
+Commit focused changes
+```
+
+When working on a parser or interpreter, also run its package-specific tests and fuzz tests before pushing.
+
+## Quick start
+
+If Go and Git are already installed and you do not need race detection yet:
+
+```bash
+git clone https://github.com/codedbyhassan/gokit.git
+cd gokit
+go test ./...
+go run ./cmd/gokit --web --addr :8080
+```
+
+Then open `http://localhost:8080`.
 
 ## Use GoKit as a library
 
@@ -221,33 +421,6 @@ gokit/
 ├── CODE_OF_CONDUCT.md
 └── SECURITY.md
 ```
-
-## Web application
-
-GoKit includes a server-rendered frontend built entirely with Go's standard library and browser APIs. There is no Node.js toolchain or frontend build step.
-
-Start it with:
-
-```bash
-go run ./cmd/gokit --web --addr :8080
-```
-
-Open `http://localhost:8080`.
-
-The interface provides:
-
-- AI-style conversational workspace
-- Natural-language input
-- Live GoKit execution
-- Confidence and assumptions
-- Explainable execution steps
-- Copy and save actions
-- Local history
-- Saved results
-- Dark/light theme preference
-- Responsive mobile layout
-
-Browser data is stored in **IndexedDB**. GoKit does not require an online database or account for the web experience.
 
 ## HTTP API
 

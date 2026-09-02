@@ -62,3 +62,16 @@ func TestParseInvalidExpression(t *testing.T) {
 		t.Fatal("expected an error")
 	}
 }
+
+func TestParsePercentIncreaseVariants(t *testing.T) {
+	tests := []string{"20% increase on 500", "20 percent increase on 500"}
+	for _, input := range tests {
+		result, err := Parse(input)
+		if err != nil {
+			t.Fatalf("Parse(%q) error = %v", input, err)
+		}
+		if result.Value.Operator != PercentIncrease || result.Value.Left != 500 || result.Value.Right != 20 {
+			t.Fatalf("Parse(%q) = %+v", input, result.Value)
+		}
+	}
+}

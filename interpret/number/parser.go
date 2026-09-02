@@ -30,7 +30,7 @@ var wordNumbers = map[string]float64{
 }
 
 // Parse interprets common numeric representations such as 1,000, 1.5k,
-// 2 million, and basic English number words.
+// 2 million, and English number words.
 func Parse(input string) (interpret.Result[float64], error) {
 	original := input
 	clean := strings.ToLower(strings.TrimSpace(input))
@@ -47,21 +47,15 @@ func Parse(input string) (interpret.Result[float64], error) {
 		if err != nil {
 			return interpret.Result[float64]{OriginalInput: original}, fmt.Errorf("%w: %q", interpret.ErrUnrecognizedInput, input)
 		}
-		return interpret.Result[float64]{
-			Value: value, Format: "numeric", Confidence: interpret.HighConfidence, OriginalInput: original,
-		}, nil
+		return interpret.Result[float64]{Value: value, Format: "numeric", Confidence: interpret.HighConfidence, OriginalInput: original}, nil
 	}
 
 	if value, ok := parseSuffixed(clean); ok {
-		return interpret.Result[float64]{
-			Value: value, Format: "scaled numeric", Confidence: 0.98, OriginalInput: original,
-		}, nil
+		return interpret.Result[float64]{Value: value, Format: "scaled numeric", Confidence: 0.98, OriginalInput: original}, nil
 	}
 
 	if value, format, ok := parseWords(clean); ok {
-		return interpret.Result[float64]{
-			Value: value, Format: format, Confidence: 0.96, OriginalInput: original,
-		}, nil
+		return interpret.Result[float64]{Value: value, Format: format, Confidence: 0.96, OriginalInput: original}, nil
 	}
 
 	return interpret.Result[float64]{OriginalInput: original}, fmt.Errorf("%w: %q", interpret.ErrUnrecognizedInput, input)
@@ -72,9 +66,7 @@ func parseSuffixed(input string) (float64, bool) {
 		suffix string
 		scale  float64
 	}{
-		{"k", 1_000},
-		{"m", 1_000_000},
-		{"b", 1_000_000_000},
+		{"k", 1_000}, {"m", 1_000_000}, {"b", 1_000_000_000},
 	}
 	for _, item := range suffixes {
 		if !strings.HasSuffix(input, item.suffix) {
@@ -93,10 +85,13 @@ func parseSuffixed(input string) (float64, bool) {
 
 	parts := strings.Fields(input)
 	if len(parts) == 2 {
-		if scale, ok := scaleWords[parts[1]]; ok && numeric.MatchString(parts[0]) {
-			value, err := strconv.ParseFloat(parts[0], 64)
-			if err == nil {
-				return value * scale, true
+		if scale, ok := scaleWords[parts[1]]; ok {
+			n := strings.ReplaceAll(parts[0], " ", "")
+			if numeric.MatchString(n) {
+				value, err := strconv.ParseFloat(n, 64)
+				if err == nil {
+					return value * scale, true
+				}
 			}
 		}
 	}

@@ -1,7 +1,14 @@
-# Binaries and build output
+# Go binaries and build output
 /bin/
+/bin/**
 /dist/
+/dist/**
 /build/
+/build/**
+out/
+out/**
+tmp/
+tmp/**
 *.exe
 *.exe~
 *.dll
@@ -9,17 +16,53 @@
 *.dylib
 *.test
 *.out
+*.app
+*.app/**
 
-# Go tooling
+# Go tooling and generated artifacts
 coverage.out
 coverage.html
+coverage.xml
+coverage/
 *.prof
+*.pprof
+*.coverprofile
 
-# IDE/editor
+# Frontend / Node build output
+node_modules/
+node_modules/**
+.npm/
+.yarn/
+.pnpm-store/
+.cache/
+.parcel-cache/
+.next/
+.nuxt/
+.svelte-kit/
+.vite/
+.vite-cache/
+public/build/
+public/dist/
+web/frontend/dist/
+web/frontend/build/
+
+# Package-manager generated files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+bun.lockb
+
+# Local frontend package metadata
+package.json
+package*.json
+
+# IDE / editor
 .idea/
 .vscode/
 *.swp
 *.swo
+*.swn
+*~
 .DS_Store
 
 # Local environment and secrets
@@ -29,3 +72,22 @@ coverage.html
 
 # OS files
 Thumbs.db
+Desktop.ini
+
+# Local logs and runtime files
+*.log
+*.pid
+*.seed
+*.local
+
+# Generated documentation / reports
+reports/
+artifacts/
+*.html
+!web/frontend/templates/*.html
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.orig

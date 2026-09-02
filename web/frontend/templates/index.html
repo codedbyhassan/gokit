@@ -1,69 +1,24 @@
 {{define "index.html"}}
 <!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>GoKit — Intelligent Go Utilities</title>
-  <link rel="stylesheet" href="/static/app.css">
-</head>
-<body>
-  <main class="shell">
-    <header class="topbar">
-      <div class="brand"><span class="mark">G</span><div><strong>GoKit</strong><small>Go utilities, interpreted naturally.</small></div></div>
-      <span class="status"><i></i> Engine ready</span>
-    </header>
-
-    <section class="hero">
-      <p class="eyebrow">GO NATIVE INTELLIGENCE</p>
-      <h1>Talk to your Go utilities.</h1>
-      <p class="lede">Enter a calculation, quantity, date, or natural-language request. GoKit interprets it, executes it, and shows how it got there.</p>
-    </section>
-
-    <section class="workspace">
-      <form class="input-card" method="post" action="/">
-        <label for="input">What do you want GoKit to understand?</label>
-        <div class="input-row">
-          <input id="input" name="input" value="{{.Input}}" placeholder="e.g. what is 20% of 500" autocomplete="off" autofocus>
-          <button type="submit">Interpret <span>→</span></button>
-        </div>
-        <div class="examples">
-          <span>Try:</span>
-          {{range .Examples}}<button type="button" onclick="fillInput(this)">{{.}}</button>{{end}}
-        </div>
-      </form>
-
-      {{if .Error}}
-      <section class="result-card error-card">
-        <div class="result-head"><div><span class="eyebrow">ERROR</span><h2>Could not interpret that input.</h2></div></div>
-        <p>{{.Error}}</p>
-      </section>
-      {{end}}
-
-      {{if .Result}}
-      <section class="result-card">
-        <div class="result-head">
-          <div><span class="eyebrow">RESULT</span><h2>{{.Result.Kind}}</h2></div>
-          <div class="confidence"><span>Confidence</span><strong>{{printf "%.0f" (mul .Result.Confidence 100)}}%</strong></div>
-        </div>
-        <div class="value">{{printf "%v" .Result.Value}}</div>
-        {{if .Result.Assumptions}}<div class="assumptions"><strong>Assumptions</strong>{{range .Result.Assumptions}}<span>{{.}}</span>{{end}}</div>{{end}}
-      </section>
-
-      <section class="plan-card">
-        <div class="section-head"><div><span class="eyebrow">EXECUTION PLAN</span><h2>How GoKit handled it</h2></div><span class="pill">{{.Result.Source}}</span></div>
-        <div class="steps">
-          {{range $i, $step := .Result.Plan.Steps}}
-          <div class="step"><span class="step-no">{{add $i 1}}</span><div><strong>{{$step.Name}}</strong><p>{{$step.Operation}}</p></div><span class="step-confidence">{{printf "%.0f" (mul $step.Confidence 100)}}%</span></div>
-          {{end}}
-        </div>
-      </section>
-      {{end}}
-    </section>
-
-    <footer><span>GoKit</span><span>•</span><span>Built with Go</span><span>•</span><span>Deterministic &amp; explainable</span></footer>
-  </main>
-  <script>function fillInput(el){document.getElementById('input').value=el.textContent;document.getElementById('input').focus()}</script>
-</body>
-</html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GoKit — Intelligent Workspace</title><link rel="stylesheet" href="/static/app.css"></head>
+<body><div class="app">
+<aside class="sidebar"><div class="brand"><span class="mark">G</span><div><strong>GoKit</strong><small>Intelligent Go workspace</small></div></div><button class="new-chat" id="newChat">+ New conversation <span>⌘K</span></button><nav class="nav"><div class="nav-label">Workspace</div><button class="active" data-view="chat">⌁ New session</button><button data-view="history">◷ History</button><button data-view="saved">☆ Saved results</button><div class="nav-label">Capabilities</div><button data-example="25 km to miles">⇄ Unit conversion</button><button data-example="what is 20% of 500">% Percentages</button><button data-example="how old is someone born 11-11-2011">◷ Dates &amp; age</button></nav><div class="sidebar-bottom"><div class="engine"><div class="engine-head"><i class="dot"></i> GoKit engine</div><p>Local, deterministic and explainable. Conversations are stored only in this browser.</p></div></div></aside>
+<main class="main"><header class="topbar"><button class="icon-btn mobile-menu" id="mobileMenu">☰</button><span class="topbar-title">Workspace / New conversation</span><div class="topbar-actions"><button class="icon-btn" id="theme">☼</button><button class="icon-btn" id="clear">⌫</button></div></header>
+<div class="content"><section class="welcome" id="welcome"><span class="eyebrow">GO NATIVE INTELLIGENCE</span><h1>What can GoKit<br>help you understand?</h1><p>Ask naturally. Calculate, convert, interpret dates and numbers, or explore what GoKit can do.</p></section>
+<form class="composer" id="composer"><textarea id="input" rows="2" placeholder="Ask GoKit anything about numbers, calculations, dates or units…" autocomplete="off"></textarea><div class="composer-footer"><span class="composer-hint">Enter to send · Shift + Enter for new line</span><button class="send" aria-label="Send">↑</button></div></form>
+<div class="examples" id="examples"><button class="example" data-example="what is 20% of 500">20% of 500</button><button class="example" data-example="25 km to miles">25 km → miles</button><button class="example" data-example="1.5k">Interpret 1.5k</button><button class="example" data-example="how old is someone born 11-11-2011">Age from date</button></div><section class="chat" id="chat"></section>
+<section class="history" id="history"><div class="history-head"><h3>RECENT</h3><button id="clearHistory">Clear history</button></div><div class="history-grid" id="historyGrid"><div class="empty-history">Your recent interpretations will appear here.</div></div></section></div></main></div><div class="toast" id="toast"></div>
+<script>
+const input=document.getElementById('input'),chat=document.getElementById('chat'),welcome=document.getElementById('welcome'),examples=document.getElementById('examples'),historyGrid=document.getElementById('historyGrid'),toast=document.getElementById('toast');let db;
+function openDB(){return new Promise((resolve,reject)=>{const r=indexedDB.open('gokit-local',1);r.onupgradeneeded=()=>{const d=r.result;if(!d.objectStoreNames.contains('history'))d.createObjectStore('history',{keyPath:'id',autoIncrement:true})};r.onsuccess=()=>{db=r.result;resolve(db)};r.onerror=()=>reject(r.error)})}
+function addHistory(x){if(!db)return;const tx=db.transaction('history','readwrite');tx.objectStore('history').add({...x,createdAt:Date.now()});tx.oncomplete=loadHistory}
+function getHistory(){return new Promise(resolve=>{if(!db)return resolve([]);const r=db.transaction('history').objectStore('history').getAll();r.onsuccess=()=>resolve(r.result.reverse());r.onerror=()=>resolve([])})}
+async function loadHistory(){const rows=await getHistory();historyGrid.innerHTML=rows.length?rows.slice(0,9).map(x=>`<button class="history-item" data-input="${attr(x.input)}"><strong>${esc(x.input)}</strong><span>${esc(String(x.kind||'result'))} · ${new Date(x.createdAt).toLocaleString()}</span></button>`).join(''):'<div class="empty-history">Your recent interpretations will appear here.</div>';historyGrid.querySelectorAll('.history-item').forEach(b=>b.onclick=()=>run(b.dataset.input))}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}function attr(s){return esc(s).replace(/`/g,'&#96;')}
+function fmt(v){if(v==null)return '—';if(typeof v==='object'){if('Value' in v)return v.Value+(v.Unit?.Symbol?' '+v.Unit.Symbol:'');if('value' in v)return v.value;return JSON.stringify(v)}return String(v)}
+function message(cls,html){const e=document.createElement('div');e.className='message '+cls;e.innerHTML=html;chat.appendChild(e);e.scrollIntoView({behavior:'smooth',block:'nearest'});return e}
+async function run(text){text=text.trim();if(!text)return;input.value='';welcome.style.display='none';examples.style.display='none';message('user','<div class="avatar">YOU</div><div class="bubble"><span class="label">You</span>'+esc(text)+'</div>');const thinking=message('assistant','<div class="avatar">G</div><div class="bubble"><span class="label">GoKit</span>Interpreting<span class="thinking"> · · ·</span></div>');try{const res=await fetch('/v1/interpret',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({input:text})});const data=await res.json();thinking.remove();if(!res.ok)throw Error(data.error||'Could not interpret that input.');const steps=data.plan?.Steps||data.plan?.steps||[];const scores=steps.map((s,i)=>`<div class="step"><span class="step-no">${i+1}</span><div class="step-body"><strong>${esc(s.Name||s.name||'Step')}</strong><span>${esc(String(s.Operation||s.operation||''))}</span></div><span class="step-score">${Math.round(Number(s.Confidence||s.confidence||0)*100)}%</span></div>`).join('');message('assistant','<div class="avatar">G</div><div class="result"><div class="result-main"><div class="result-top"><div><span class="kind">'+esc(data.kind)+'</span><h2>Result</h2></div><div class="confidence"><small>Confidence</small><strong>'+Math.round(Number(data.confidence)*100)+'%</strong></div></div><div class="big-value">'+esc(fmt(data.value))+'</div><div class="result-meta"><span class="chip">'+esc(data.source)+'</span><span class="chip">Local execution</span></div>'+(data.assumptions?.length?'<div class="assumptions"><strong>Assumptions</strong>'+data.assumptions.map(esc).join(' · ')+'</div>':'')+'</div>'+(steps.length?'<div class="plan"><div class="plan-title">How GoKit handled it</div><div class="steps">'+scores+'</div></div>':'')+'</div>');addHistory({input:text,kind:data.kind,value:fmt(data.value),confidence:data.confidence});showToast('Saved locally')}catch(e){thinking.remove();message('assistant','<div class="avatar">G</div><div class="bubble"><span class="label">GoKit</span>'+esc(e.message)+'</div>')}}
+function showToast(t){toast.textContent=t;toast.classList.add('show');setTimeout(()=>toast.classList.remove('show'),1600)}
+document.getElementById('composer').onsubmit=e=>{e.preventDefault();run(input.value)};input.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();run(input.value)}};document.querySelectorAll('[data-example]').forEach(b=>b.onclick=()=>{input.value=b.dataset.example;input.focus()});document.getElementById('newChat').onclick=()=>{chat.innerHTML='';welcome.style.display='block';examples.style.display='flex';input.focus()};document.getElementById('clear').onclick=()=>{chat.innerHTML='';welcome.style.display='block';examples.style.display='flex';showToast('Conversation cleared')};document.getElementById('clearHistory').onclick=()=>{if(!db)return;const tx=db.transaction('history','readwrite');tx.objectStore('history').clear();tx.oncomplete=()=>{loadHistory();showToast('History cleared')}};document.getElementById('theme').onclick=()=>document.body.classList.toggle('light');document.querySelectorAll('.nav button[data-view]').forEach(b=>b.onclick=()=>{if(b.dataset.view==='history')document.getElementById('history').scrollIntoView({behavior:'smooth'});else window.scrollTo({top:0,behavior:'smooth'})});document.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();input.focus()}});openDB().then(loadHistory);
+</script></body></html>
 {{end}}

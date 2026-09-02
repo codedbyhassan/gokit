@@ -23,10 +23,10 @@ func Evaluate(node Node) (float64, error) {
 		case Add: return calculator.AddNumbers(left,right),nil
 		case Subtract: return calculator.SubtractNumbers(left,right),nil
 		case Multiply: return calculator.MultiplyNumbers(left,right),nil
-		case Divide:
-			return calculator.DivideNumbers(left,right)
-		case Operator("modulo"):
-			if right==0{return 0,calculator.ErrDivisionByZero}; return math.Mod(left,right),nil
+		case Divide: return calculator.DivideNumbers(left,right)
+		case Operator("modulo"): if right==0{return 0,calculator.ErrDivisionByZero}; return math.Mod(left,right),nil
+		case PercentOf: return left*right/100,nil
+		case PercentIncrease: return left+(left*right/100),nil
 		default:return 0,fmt.Errorf("unsupported operator %q",n.Op)
 		}
 	default:return 0,fmt.Errorf("unsupported AST node %T",node)

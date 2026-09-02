@@ -104,6 +104,26 @@ Explainable Plan
 
 `pipeline.ParseAt` accepts an explicit reference time so contextual operations such as age calculation are deterministic and testable. The result preserves both the original interpretation and the executed value.
 
+## API & CLI
+
+GoKit can be embedded directly as a Go library, used from the `gokit` command, or exposed through the HTTP/JSON adapter.
+
+Start the HTTP API:
+
+```bash
+go run ./cmd/gokit --serve --addr :8080
+```
+
+Then send human input:
+
+```bash
+curl -X POST http://localhost:8080/v1/interpret \
+  -H 'Content-Type: application/json' \
+  -d '{"input":"what is 20% of 500"}'
+```
+
+The API returns the interpreted/executed value together with confidence, assumptions, and the explainable execution plan. See `api/http/README.md` for the transport contract.
+
 ## Production Hardening
 
 GoKit includes cross-package integration coverage, parser fuzz tests, performance benchmarks, and automated CI checks for formatting, vetting, normal tests, and race detection.
@@ -134,6 +154,10 @@ interpret/
 ├── router/        confidence-ranked domain routing
 ├── plan/          explainable execution plans
 └── pipeline/      unified interpretation + execution boundary
+
+api/http/           HTTP/JSON transport adapter
+cmd/gokit/          CLI + API server entrypoint
+tests/integration/  cross-package integration tests
 ```
 
 The central model is:
@@ -173,5 +197,7 @@ Phase 3 — Human Number Interpretation: **complete**
 Phase 4 — Intent, Router & Unified Execution Pipeline: **complete**
 
 Phase 5 — Production Hardening: **complete**
+
+Phase 6 — API, CLI & SDK Surface: **complete**
 
 Overall project: 🚧 Early development

@@ -36,22 +36,92 @@ GoKit's quantity engine supports natural measurements, compatible-unit arithmeti
 Examples:
 
 ```text
-5kg + 200g                         → 5.2 kg
-five kilograms plus two hundred grams → 5.2 kg
-10 miles + 5 km                    → 13.106855 mi
-2m * 4                             → 8 m
-5kg / 2                            → 2.5 kg
-convert five kilometers to miles   → 3.106855... mi
+5kg + 200g                              → 5.2 kg
+five kilograms plus two hundred grams  → 5.2 kg
+10 miles + 5 km                         → 13.106855 mi
+2m * 4                                  → 8 m
+5kg / 2                                 → 2.5 kg
+convert five kilometers to miles        → 3.106855... mi
 ```
 
 Supported dimensions include length, mass, temperature, speed, and volume. Unit aliases include symbols, singular/plural names, and common natural-language forms.
 
 The typed APIs are available through `interpret/unit.ParseQuantity`, `interpret/unit.ParseConversion`, and `interpret/expression.EvaluateQuantity`.
 
-## Architecture
+## Number Interpretation
+
+The number interpreter accepts both machine-friendly and human-friendly forms:
+
+```text
+1,000                 → 1000
+1.5k                  → 1500
+2.5 million           → 2500000
+twenty five            → 25
+one hundred twenty five → 125
+two point five million → 2500000
+negative one hundred  → -100
+```
+
+English number parsing uses a bounded grammar rather than silently accepting malformed phrases. Invalid constructions such as `million five`, repeated `hundred`, and incomplete decimals are rejected.
+
+## Unified Pipeline
+
+Applications that want one entry point can use `interpret/pipeline`:
+
+```go
+result, err := pipeline.ParseAt("what is 20% of 500", asOf)
+if err != nil {
+    // handle empty, ambiguous, invalid, or unsupported input
+}
+
+fmt.Println(result.Value)
+fmt.Println(result.Plan.Steps)
+```
+
+The pipeline follows:
 
 ```text
 Human Input
+    ↓
+Intent Interpreter
+    ↓  (only when a contextual command matches)
+Typed Interpretation
+    ↓
+Execution
+    ↓
+Explainable Plan
+
+If no intent matches:
+    ↓
+Domain Router
+    ↓
+Confidence-ranked Interpreter
+    ↓
+Typed Value / Execution
+    ↓
+Explainable Plan
+```
+
+`pipeline.ParseAt` accepts an explicit reference time so contextual operations such as age calculation are deterministic and testable. The result preserves both the original interpretation and the executed value.
+
+## Architecture
+
+```text
+interpret/
+├── date/          date interpretation
+├── number/        human number interpretation
+├── expression/    arithmetic + quantity ASTs
+├── unit/          measurement + conversion interpretation
+├── intent/        natural-language command composition
+├── router/        confidence-ranked domain routing
+├── plan/          explainable execution plans
+└── pipeline/      unified interpretation + execution boundary
+```
+
+The central model is:
+
+```text
+User Input
     ↓
 Normalizer
     ↓
@@ -61,27 +131,9 @@ Candidates + Confidence
     ↓
 Typed Value
     ↓
-GoKit Package
-```
-
-Quantity expressions use a typed AST:
-
-```text
-Input
- ↓
-Normalize natural operators
- ↓
-Parse quantities + scalar values
- ↓
-Build expression AST
- ↓
-Validate dimensions / arithmetic rules
- ↓
-Convert compatible units
- ↓
-Evaluate
- ↓
-Typed QuantityResult
+Execution
+    ↓
+Explainable Result
 ```
 
 The goal is not to pretend GoKit is an LLM. It provides deterministic, explainable, testable intelligence that can be extended by domain-specific interpreters.
@@ -97,5 +149,9 @@ The intelligence layer follows a **bounded intelligence** principle: prefer dete
 Phase 1 — Expression Engine: **complete**
 
 Phase 2 — Quantity Engine: **complete**
+
+Phase 3 — Human Number Interpretation: **complete**
+
+Phase 4 — Intent, Router & Unified Execution Pipeline: **complete**
 
 Overall project: 🚧 Early development

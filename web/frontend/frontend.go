@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	gokithttp "github.com/codedbyhassan/gokit/api/http"
 	"github.com/codedbyhassan/gokit/interpret/pipeline"
 )
 
@@ -22,6 +23,7 @@ type PageData struct {
 
 type Server struct {
 	template *template.Template
+	api      http.Handler
 }
 
 func NewServer() (*Server, error) {
@@ -32,12 +34,14 @@ func NewServer() (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Server{template: tmpl}, nil
+	return &Server{template: tmpl, api: gokithttp.NewServer().Handler()}, nil
 }
 
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("/static/", http.FileServer(http.FS(assets)))
+	mux.Handle("/v1/", s.api)
+	mux.Handle("/health", s.api)
 	mux.HandleFunc("GET /", s.index)
 	mux.HandleFunc("POST /", s.interpret)
 	return mux

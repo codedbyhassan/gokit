@@ -3,7 +3,6 @@ package expression
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 
 	"github.com/codedbyhassan/gokit/calculator"
@@ -15,11 +14,11 @@ import (
 type Operator string
 
 const (
-	Add         Operator = "+"
-	Subtract    Operator = "-"
-	Multiply    Operator = "*"
-	Divide      Operator = "/"
-	PercentOf   Operator = "percent_of"
+	Add             Operator = "+"
+	Subtract        Operator = "-"
+	Multiply        Operator = "*"
+	Divide          Operator = "/"
+	PercentOf       Operator = "percent_of"
 	PercentIncrease Operator = "percent_increase"
 )
 
@@ -30,8 +29,6 @@ type Operation struct {
 	Operator      Operator
 	OriginalInput string
 }
-
-var binaryPattern = regexp.MustCompile(`^(.+?)\s+(?:plus|add(?:ed)?\s+to|minus|subtract(?:ed)?\s+from|multiplied\s+by|times|divided\s+by)\s+(.+)$`)
 
 // Parse interprets common arithmetic expressions such as "10 plus 5",
 // "what is 10 multiplied by 5", and "100 divided by 4".
@@ -142,7 +139,7 @@ func parseWords(input string) (string, string, Operator, bool) {
 
 func parsePercent(input, original string) (interpret.Result[Operation], bool) {
 	parts := strings.Split(input, " of ")
-	if len(parts) == 2 && strings.HasSuffix(parts[0], "%") {
+	if len(parts) == 2 && strings.HasSuffix(strings.TrimSpace(parts[0]), "%") {
 		percent := strings.TrimSuffix(strings.TrimSpace(parts[0]), "%")
 		base := strings.TrimSpace(parts[1])
 		p, err1 := number.Parse(percent)
@@ -152,12 +149,14 @@ func parsePercent(input, original string) (interpret.Result[Operation], bool) {
 		}
 	}
 
-	if strings.HasSuffix(input, "% increase") {
-		percent := strings.TrimSpace(strings.TrimSuffix(input, "% increase"))
-		parts := strings.Split(percent, " increase on ")
-		if len(parts) == 2 {
-			p, err1 := number.Parse(strings.TrimSpace(parts[0]))
-			b, err2 := number.Parse(strings.TrimSpace(parts[1]))
+	increasePatterns := []string{"% increase on ", " percent increase on "}
+	for _, marker := range increasePatterns {
+		if parts := strings.Split(input, marker); len(parts) == 2 {
+			percentText := strings.TrimSpace(parts[0])
+			percentText = strings.TrimSuffix(percentText, "%")
+			baseText := strings.TrimSpace(parts[1])
+			p, err1 := number.Parse(percentText)
+			b, err2 := number.Parse(baseText)
 			if err1 == nil && err2 == nil {
 				return makeResult(b.Value, p.Value, PercentIncrease, original), true
 			}
@@ -178,9 +177,9 @@ func parseHalf(input, original string) (interpret.Result[Operation], bool) {
 
 func makeResult(left, right float64, op Operator, original string) interpret.Result[Operation] {
 	return interpret.Result[Operation]{
-		Value: Operation{Left: left, Right: right, Operator: op, OriginalInput: original},
-		Format: "arithmetic expression",
-		Confidence: interpret.HighConfidence,
+		Value:         Operation{Left: left, Right: right, Operator: op, OriginalInput: original},
+		Format:        "arithmetic expression",
+		Confidence:    interpret.HighConfidence,
 		OriginalInput: original,
 	}
 }

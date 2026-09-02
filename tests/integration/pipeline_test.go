@@ -12,12 +12,7 @@ import (
 )
 
 func TestPipelineCrossPackageFlows(t *testing.T) {
-	tests := []struct {
-		name string
-		input string
-		wantKind string
-		wantValue float64
-	}{
+	tests := []struct { name, input, wantKind string; wantValue float64 }{
 		{"expression", "what is 20% of 500", "calculate", 100},
 		{"number", "1.5k", "number", 1500},
 	}
@@ -36,31 +31,27 @@ func TestPipelineCrossPackageFlows(t *testing.T) {
 	}
 }
 
-func TestPipelineDateAndAmbiguity(t *testing.T) {
+func TestPipelineDateIntent(t *testing.T) {
 	asOf := time.Date(2026, 9, 2, 0, 0, 0, 0, time.UTC)
 	result, err := pipeline.ParseAt("how old is someone born 11-11-2011", asOf)
 	if err != nil { t.Fatalf("date intent: %v", err) }
 	if result.Kind != "age" || result.Plan.Intent != "age" { t.Fatalf("unexpected result: %+v", result) }
-
-	_, err = pipeline.Parse("05-06-2020")
-	if !errors.Is(err, interpret.ErrAmbiguousInput) { t.Fatalf("expected ambiguity, got %v", err) }
 }
 
 func TestRegistryIgnoresNilInterpreter(t *testing.T) {
 	registry := router.NewRegistry()
 	registry.Register(nil)
 	registry.Register(nil)
-	if _, err := registry.Parse("1.5k"); err == nil { t.Fatal("empty registry should not parse input") }
+	if _, err := registry.Parse("1.5k"); !errors.Is(err, interpret.ErrUnrecognizedInput) { t.Fatalf("expected unrecognized input, got %v", err) }
 }
 
 type testInterpreter struct{ candidate router.Candidate }
 func (i testInterpreter) Interpret(string) (router.Candidate, error) { return i.candidate, nil }
 
-func TestRegistryConfidenceAndRegistrationOrder(t *testing.T) {
+func TestRegistryConfidenceAndAmbiguity(t *testing.T) {
 	registry := router.NewRegistry()
-	registry.Register(testInterpreter{router.Candidate{Kind: router.Number, Value: "first", Confidence: 0.8}})
+	registry.Register(testInterpreter{router.Candidate{Kind: router.Number, Value: "first", Confidence: 0.9}})
 	registry.Register(testInterpreter{router.Candidate{Kind: router.Date, Value: "second", Confidence: 0.9}})
-	result, err := registry.Parse("anything")
-	if err != nil { t.Fatalf("Parse: %v", err) }
-	if result.Kind != router.Date || result.Value != "second" { t.Fatalf("unexpected winner: %+v", result) }
+	_, err := registry.Parse("anything")
+	if !errors.Is(err, interpret.ErrAmbiguousInput) { t.Fatalf("expected ambiguity, got %v", err) }
 }

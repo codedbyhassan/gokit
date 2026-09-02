@@ -3,6 +3,7 @@ package number
 
 import (
 	"fmt"
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -12,128 +13,41 @@ import (
 
 var numeric = regexp.MustCompile(`^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$`)
 
-var scaleWords = map[string]float64{
-	"thousand": 1_000,
-	"million": 1_000_000,
-	"billion": 1_000_000_000,
-	"trillion": 1_000_000_000_000,
-}
+var scaleWords = map[string]float64{"thousand":1e3,"million":1e6,"billion":1e9,"trillion":1e12,"quadrillion":1e15}
+var wordNumbers = map[string]float64{"zero":0,"one":1,"two":2,"three":3,"four":4,"five":5,"six":6,"seven":7,"eight":8,"nine":9,"ten":10,"eleven":11,"twelve":12,"thirteen":13,"fourteen":14,"fifteen":15,"sixteen":16,"seventeen":17,"eighteen":18,"nineteen":19,"twenty":20,"thirty":30,"forty":40,"fifty":50,"sixty":60,"seventy":70,"eighty":80,"ninety":90}
 
-var wordNumbers = map[string]float64{
-	"zero": 0, "one": 1, "two": 2, "three": 3, "four": 4,
-	"five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9,
-	"ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13,
-	"fourteen": 14, "fifteen": 15, "sixteen": 16, "seventeen": 17,
-	"eighteen": 18, "nineteen": 19, "twenty": 20, "thirty": 30,
-	"forty": 40, "fifty": 50, "sixty": 60, "seventy": 70,
-	"eighty": 80, "ninety": 90,
-}
-
-// Parse interprets common numeric representations such as 1,000, 1.5k,
-// 2 million, and English number words.
+// Parse interprets numeric literals, scaled numbers, and English number words.
 func Parse(input string) (interpret.Result[float64], error) {
-	original := input
-	clean := strings.ToLower(strings.TrimSpace(input))
-	clean = strings.ReplaceAll(clean, ",", "")
-	clean = strings.ReplaceAll(clean, "_", "")
-	clean = strings.Join(strings.Fields(clean), " ")
-
-	if clean == "" {
-		return interpret.Result[float64]{OriginalInput: original}, interpret.ErrEmptyInput
-	}
-
-	if numeric.MatchString(clean) {
-		value, err := strconv.ParseFloat(clean, 64)
-		if err != nil {
-			return interpret.Result[float64]{OriginalInput: original}, fmt.Errorf("%w: %q", interpret.ErrUnrecognizedInput, input)
-		}
-		return interpret.Result[float64]{Value: value, Format: "numeric", Confidence: interpret.HighConfidence, OriginalInput: original}, nil
-	}
-
-	if value, ok := parseSuffixed(clean); ok {
-		return interpret.Result[float64]{Value: value, Format: "scaled numeric", Confidence: 0.98, OriginalInput: original}, nil
-	}
-
-	if value, format, ok := parseWords(clean); ok {
-		return interpret.Result[float64]{Value: value, Format: format, Confidence: 0.96, OriginalInput: original}, nil
-	}
-
-	return interpret.Result[float64]{OriginalInput: original}, fmt.Errorf("%w: %q", interpret.ErrUnrecognizedInput, input)
+	original:=input; clean:=normalize(input)
+	if clean=="" { return interpret.Result[float64]{OriginalInput:original},interpret.ErrEmptyInput }
+	if numeric.MatchString(clean) { v,e:=strconv.ParseFloat(clean,64); if e==nil && !math.IsNaN(v) && !math.IsInf(v,0) { return result(v,"numeric",interpret.HighConfidence,original),nil } }
+	if v,ok:=parseSuffixed(clean);ok{return result(v,"scaled numeric",0.98,original),nil}
+	if v,format,ok:=parseWords(clean);ok{return result(v,format,0.96,original),nil}
+	return interpret.Result[float64]{OriginalInput:original},fmt.Errorf("%w: %q",interpret.ErrUnrecognizedInput,input)
 }
 
-func parseSuffixed(input string) (float64, bool) {
-	suffixes := []struct {
-		suffix string
-		scale  float64
-	}{
-		{"k", 1_000}, {"m", 1_000_000}, {"b", 1_000_000_000},
-	}
-	for _, item := range suffixes {
-		if !strings.HasSuffix(input, item.suffix) {
-			continue
-		}
-		n := strings.TrimSpace(strings.TrimSuffix(input, item.suffix))
-		if !numeric.MatchString(n) {
-			return 0, false
-		}
-		value, err := strconv.ParseFloat(n, 64)
-		if err != nil {
-			return 0, false
-		}
-		return value * item.scale, true
-	}
+func normalize(input string) string { s:=strings.ToLower(strings.TrimSpace(input));s=strings.ReplaceAll(s,"_","");s=strings.ReplaceAll(s,",","");s=strings.ReplaceAll(s,"–","-");s=strings.ReplaceAll(s,"—","-");return strings.Join(strings.Fields(s)," ") }
+func result(v float64,format string,c interpret.Confidence,original string) interpret.Result[float64]{return interpret.Result[float64]{Value:v,Format:format,Confidence:c,OriginalInput:original}}
 
-	parts := strings.Fields(input)
-	if len(parts) == 2 {
-		if scale, ok := scaleWords[parts[1]]; ok && numeric.MatchString(parts[0]) {
-			value, err := strconv.ParseFloat(parts[0], 64)
-			if err == nil {
-				return value * scale, true
-			}
-		}
-	}
-	return 0, false
+func parseSuffixed(input string)(float64,bool){
+	for _,item:=range []struct{suffix string;scale float64}{{"k",1e3},{"m",1e6},{"b",1e9},{"t",1e12}}{if strings.HasSuffix(input,item.suffix){n:=strings.TrimSpace(strings.TrimSuffix(input,item.suffix));if numeric.MatchString(n){v,e:=strconv.ParseFloat(n,64);if e==nil{return v*item.scale,true}}}}
+	parts:=strings.Fields(input);if len(parts)==2 {if scale,ok:=scaleWords[parts[1]];ok {if v,e:=parseAtomicNumber(parts[0]);e==nil{return v*scale,true}}}
+	return 0,false
 }
 
-func parseWords(input string) (float64, string, bool) {
-	parts := strings.Fields(strings.ReplaceAll(input, "-", " "))
-	if len(parts) == 0 {
-		return 0, "", false
+func parseWords(input string)(float64,string,bool){
+	parts:=strings.Fields(strings.ReplaceAll(input,"-"," ")); if len(parts)==0{return 0,"",false}
+	var total,group float64; used:=false; fractional:=false; fracDigits:=""
+	for i:=0;i<len(parts);i++ { p:=parts[i]; if p=="and" {continue}; if p=="point"||p=="dot" {fractional=true;used=true;for _,fp:=range parts[i+1:] {if v,ok:=wordNumbers[fp];ok && v<10 {fracDigits+=strconv.Itoa(int(v));continue};if numeric.MatchString(fp)&&!strings.Contains(fp,"."){fracDigits+=fp;continue};return 0,"",false};break}
+		if fractional {break}
+		if v,ok:=wordNumbers[p];ok {group+=v;used=true;continue}
+		if p=="hundred" {if group==0{group=1};group*=100;used=true;continue}
+		if scale,ok:=scaleWords[p];ok {if group==0{group=1};total+=group*scale;group=0;used=true;continue}
+		return 0,"",false
 	}
-
-	var total float64
-	var current float64
-	used := false
-	for _, part := range parts {
-		if part == "and" {
-			continue
-		}
-		if value, ok := wordNumbers[part]; ok {
-			current += value
-			used = true
-			continue
-		}
-		if part == "hundred" {
-			if current == 0 {
-				current = 1
-			}
-			current *= 100
-			used = true
-			continue
-		}
-		if scale, ok := scaleWords[part]; ok {
-			if current == 0 {
-				current = 1
-			}
-			total += current * scale
-			current = 0
-			used = true
-			continue
-		}
-		return 0, "", false
-	}
-	if !used {
-		return 0, "", false
-	}
-	return total + current, "number words", true
+	value:=total+group
+	if fractional { if fracDigits==""{return 0,"",false}; f,e:=strconv.ParseFloat("0."+fracDigits,64);if e!=nil{return 0,"",false};value+=f }
+	if !used{return 0,"",false};return value,"number words",true
 }
+
+func parseAtomicNumber(s string)(float64,error){if numeric.MatchString(s){return strconv.ParseFloat(s,64)};if v,_,ok:=parseWords(s);ok{return v,nil};return 0,fmt.Errorf("not a number")}

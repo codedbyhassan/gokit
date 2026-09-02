@@ -71,6 +71,7 @@ func ParseAt(input string, asOf time.Time) (Result, error) {
 		}
 	}
 
+	clean = stripCommandPrefix(clean)
 	if match := quantityExpressionPattern.FindStringSubmatch(clean); len(match) == 4 {
 		if result, err := calculateQuantities(match[1], match[2], match[3], original); err == nil {
 			return result, nil
@@ -90,6 +91,15 @@ func normalize(input string) string {
 	clean = strings.TrimSuffix(clean, "?")
 	clean = strings.Replace(clean, "what's ", "what is ", 1)
 	return strings.Join(strings.Fields(clean), " ")
+}
+
+func stripCommandPrefix(input string) string {
+	for _, prefix := range []string{"calculate ", "please calculate ", "what is ", "please work out ", "work out "} {
+		if strings.HasPrefix(input, prefix) {
+			return strings.TrimSpace(strings.TrimPrefix(input, prefix))
+		}
+	}
+	return input
 }
 
 func looksLikeConversion(input string) bool {

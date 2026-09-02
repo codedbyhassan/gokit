@@ -8,10 +8,15 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  test:
-    name: Test, vet and race
+  quality:
+    name: Format, vet, test and race
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -27,7 +32,7 @@ jobs:
         run: |
           files=$(gofmt -l .)
           if [ -n "$files" ]; then
-            echo "Go files are not formatted:"
+            echo "The following Go files are not formatted:"
             echo "$files"
             exit 1
           fi
@@ -40,3 +45,6 @@ jobs:
 
       - name: Race test
         run: go test -race ./...
+
+      - name: Fuzz smoke test
+        run: go test ./interpret/number -run '^$' -fuzz 'Fuzz' -fuzztime=3s

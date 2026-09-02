@@ -15,36 +15,38 @@ A collection of robust, reusable Go utilities and components — built from simp
 
 ## Intelligent Interpretation
 
-GoKit is designed to accept useful human input without forcing every caller into one exact format.
+GoKit accepts useful human input without forcing every caller into one exact format.
 
-The `interpret` package provides a shared interpretation layer that can:
+The `interpret` package provides a shared interpretation layer that can normalize input, detect patterns, generate interpretations, score confidence, report ambiguity, and return typed Go values.
 
-1. Normalize input.
-2. Detect supported patterns.
-3. Generate possible interpretations.
-4. Score confidence.
-5. Report ambiguity instead of silently guessing.
-6. Return a strongly typed Go value that domain packages can consume.
-
-For example, the date interpreter can understand:
-
-```text
-11-11-2011
-2011-11-11
-11-2011-11
-11 November 2011
-```
-
-The `interpret/intent` package adds a higher-level command layer that composes those interpreters into requests such as:
+The `interpret/intent` package composes those interpreters into requests such as:
 
 ```text
 what's 20% of 500?
 convert 10 miles to km
 how old is someone born 11-11-2011
 calculate 5kg plus 200g
+five kilograms plus two hundred grams
 ```
 
-The goal is not to pretend GoKit is an LLM. It is to provide deterministic, explainable, testable intelligence that can be extended by domain-specific interpreters.
+## Quantity Engine
+
+GoKit's quantity engine supports natural measurements, compatible-unit arithmetic, conversion, scalar multiplication/division, and dimensional validation.
+
+Examples:
+
+```text
+5kg + 200g                         → 5.2 kg
+five kilograms plus two hundred grams → 5.2 kg
+10 miles + 5 km                    → 13.106855 mi
+2m * 4                             → 8 m
+5kg / 2                            → 2.5 kg
+convert five kilometers to miles   → 3.106855... mi
+```
+
+Supported dimensions include length, mass, temperature, speed, and volume. Unit aliases include symbols, singular/plural names, and common natural-language forms.
+
+The typed APIs are available through `interpret/unit.ParseQuantity`, `interpret/unit.ParseConversion`, and `interpret/expression.EvaluateQuantity`.
 
 ## Architecture
 
@@ -62,35 +64,27 @@ Typed Value
 GoKit Package
 ```
 
-This keeps input interpretation separate from business logic. For example:
+Quantity expressions use a typed AST:
 
 ```text
-"how old is someone born 11-11-2011"
-                 ↓
-        interpret/intent
-                 ↓
-          interpret/date
-                 ↓
-             time.Time
-                 ↓
-            age.Calculate
-                 ↓
-            age.Result
+Input
+ ↓
+Normalize natural operators
+ ↓
+Parse quantities + scalar values
+ ↓
+Build expression AST
+ ↓
+Validate dimensions / arithmetic rules
+ ↓
+Convert compatible units
+ ↓
+Evaluate
+ ↓
+Typed QuantityResult
 ```
 
-Another example composes measurements before arithmetic:
-
-```text
-"calculate 5kg plus 200g"
-          ↓
-    parse quantities
-          ↓
-     normalize units
-          ↓
-       calculate
-          ↓
-      5.2 kilograms
-```
+The goal is not to pretend GoKit is an LLM. It provides deterministic, explainable, testable intelligence that can be extended by domain-specific interpreters.
 
 ## Philosophy
 
@@ -100,4 +94,8 @@ The intelligence layer follows a **bounded intelligence** principle: prefer dete
 
 ## Status
 
-🚧 Early development
+Phase 1 — Expression Engine: **complete**
+
+Phase 2 — Quantity Engine: **complete**
+
+Overall project: 🚧 Early development

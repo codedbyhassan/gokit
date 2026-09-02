@@ -5,20 +5,21 @@ import (
 	"testing"
 	"time"
 
+	"github.com/codedbyhassan/gokit/calculator"
 	"github.com/codedbyhassan/gokit/interpret"
-	"github.com/codedbyhassan/gokit/interpret/expression"
 )
 
-func TestParseAtUsesIntentForNaturalCommands(t *testing.T) {
+func TestParseAtUsesIntentAndExecutesNaturalCommands(t *testing.T) {
 	asOf := time.Date(2026, 9, 2, 0, 0, 0, 0, time.UTC)
 	result, err := ParseAt("what is 20% of 500", asOf)
 	if err != nil { t.Fatal(err) }
 	if result.Source != IntentSource { t.Fatalf("source = %q, want %q", result.Source, IntentSource) }
 	if result.Kind != "calculate" { t.Fatalf("kind = %q, want calculate", result.Kind) }
-	value, ok := result.Value.(expression.Operation)
-	if !ok { t.Fatalf("value type = %T, want expression.Operation", result.Value) }
-	if value.Operator != expression.PercentOf || value.Left != 500 || value.Right != 20 { t.Fatalf("unexpected operation: %+v", value) }
-	if len(result.Plan.Steps) != 1 { t.Fatalf("plan steps = %d, want 1", len(result.Plan.Steps)) }
+	value, ok := result.Value.(calculator.Result)
+	if !ok { t.Fatalf("value type = %T, want calculator.Result", result.Value) }
+	if value.Value != 100 { t.Fatalf("value = %v, want 100", value.Value) }
+	if len(result.Plan.Steps) != 2 { t.Fatalf("plan steps = %d, want 2", len(result.Plan.Steps)) }
+	if result.Interpretation == nil { t.Fatal("interpretation should be preserved") }
 }
 
 func TestParseAtFallsBackToRouter(t *testing.T) {

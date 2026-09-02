@@ -53,13 +53,13 @@ The typed APIs are available through `interpret/unit.ParseQuantity`, `interpret/
 The number interpreter accepts both machine-friendly and human-friendly forms:
 
 ```text
-1,000                 → 1000
-1.5k                  → 1500
-2.5 million           → 2500000
-twenty five            → 25
+1,000                  → 1000
+1.5k                   → 1500
+2.5 million            → 2500000
+twenty five             → 25
 one hundred twenty five → 125
-two point five million → 2500000
-negative one hundred  → -100
+two point five million  → 2500000
+negative one hundred   → -100
 ```
 
 English number parsing uses a bounded grammar rather than silently accepting malformed phrases. Invalid constructions such as `million five`, repeated `hundred`, and incomplete decimals are rejected.
@@ -103,6 +103,24 @@ Explainable Plan
 ```
 
 `pipeline.ParseAt` accepts an explicit reference time so contextual operations such as age calculation are deterministic and testable. The result preserves both the original interpretation and the executed value.
+
+## Production Hardening
+
+GoKit includes cross-package integration coverage, parser fuzz tests, performance benchmarks, and automated CI checks for formatting, vetting, normal tests, and race detection.
+
+Run the same checks locally with:
+
+```bash
+go test ./...
+go test -race ./...
+go vet ./...
+```
+
+Benchmarks are available with:
+
+```bash
+go test -bench=. ./...
+```
 
 ## Architecture
 
@@ -153,5 +171,7 @@ Phase 2 — Quantity Engine: **complete**
 Phase 3 — Human Number Interpretation: **complete**
 
 Phase 4 — Intent, Router & Unified Execution Pipeline: **complete**
+
+Phase 5 — Production Hardening: **complete**
 
 Overall project: 🚧 Early development

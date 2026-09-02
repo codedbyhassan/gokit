@@ -26,14 +26,20 @@ type Conversion struct {
 var conversionPattern = regexp.MustCompile(`^(.+?)\s+(?:to|in)\s+(.+)$`)
 var quantityPattern = regexp.MustCompile(`^([+-]?(?:\d+(?:\.\d+)?|\.\d+))\s*([a-z°][a-z°/ ]*)$`)
 
-// Parse interprets measurements such as "5kg", "10 kilometers", and
-// conversions such as "20 km to miles" or "25 celsius in fahrenheit".
+// Parse interprets measurements and natural conversion requests such as
+// "5kg", "20 km to miles", "convert 20 km to miles", and
+// "what is 5 kg in pounds".
 func Parse(input string) (interpret.Result[any], error) {
 	original := input
 	clean := normalize(input)
 	if clean == "" {
 		return interpret.Result[any]{OriginalInput: original}, interpret.ErrEmptyInput
 	}
+
+	for _, prefix := range []string{"convert ", "what is "} {
+		clean = strings.TrimPrefix(clean, prefix)
+	}
+	clean = strings.TrimSuffix(strings.TrimSpace(clean), "?")
 
 	if matches := conversionPattern.FindStringSubmatch(clean); len(matches) == 3 {
 		from, err := parseQuantity(matches[1])
@@ -57,10 +63,7 @@ func normalize(input string) string {
 	clean := strings.ToLower(strings.TrimSpace(input))
 	clean = strings.ReplaceAll(clean, "°c", " celsius")
 	clean = strings.ReplaceAll(clean, "°f", " fahrenheit")
-	clean = strings.Join(strings.Fields(clean), " ")
-	// Undo the intentional spacing when the degree symbol was attached to a number.
-	clean = strings.ReplaceAll(clean, " celsius", " celsius")
-	return clean
+	return strings.Join(strings.Fields(clean), " ")
 }
 
 func parseQuantity(input string) (Quantity, error) {

@@ -4,25 +4,44 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/codedbyhassan/gokit/interpret/number"
 	"github.com/codedbyhassan/gokit/interpret/unit"
 )
 
-// ParseQuantityAST parses expressions containing measurements and scalar values.
-// Quantity literals are recognized by trying the longest suffix at each factor.
+// ParseQuantityAST parses arithmetic containing quantities and scalar values.
 func ParseQuantityAST(input string) (Node, error) {
 	clean := normalize(input)
 	clean = strings.TrimSpace(strings.TrimPrefix(clean, "what is "))
 	clean = strings.TrimSuffix(clean, "?")
-	if clean=="" {return nil,fmt.Errorf("empty expression")}
-	p:=&quantityParser{input:clean}
-	n,err:=p.parseExpression();if err!=nil{return nil,err}
-	p.skipSpace();if p.pos!=len(p.input){return nil,fmt.Errorf("unexpected input near %q",p.input[p.pos:])}
-	return n,nil
+	if clean == "" { return nil, fmt.Errorf("empty expression") }
+	p := &quantityParser{input: clean}
+	n, err := p.parseExpression()
+	if err != nil { return nil, err }
+	p.skipSpace()
+	if p.pos != len(p.input) { return nil, fmt.Errorf("unexpected input near %q", p.input[p.pos:]) }
+	return n, nil
 }
 
-type quantityParser struct{input string;pos int}
-func(p *quantityParser)skipSpace(){for p.pos<len(p.input)&&p.input[p.pos]==' '{p.pos++}}
-func(p *quantityParser)parseExpression()(Node,error){left,e:=p.parseTerm();if e!=nil{return nil,e};for{p.skipSpace();if p.pos>=len(p.input){break};c:=p.input[p.pos];if c!='+'&&c!='-'{break};p.pos++;right,e:=p.parseTerm();if e!=nil{return nil,e};op:=Add;if c=='-'{op=Subtract};left=Binary{Left:left,Op:op,Right:right}};return left,nil}
-func(p *quantityParser)parseTerm()(Node,error){left,e:=p.parseFactor();if e!=nil{return nil,e};for{p.skipSpace();if p.pos>=len(p.input){break};c:=p.input[p.pos];if c!='*'&&c!='/'{break};p.pos++;right,e:=p.parseFactor();if e!=nil{return nil,e};op:=Multiply;if c=='/'{op=Divide};left=Binary{Left:left,Op:op,Right:right}};return left,nil}
-func(p *quantityParser)parseFactor()(Node,error){p.skipSpace();if p.pos>=len(p.input){return nil,fmt.Errorf("expected a value")};if p.input[p.pos]=='(' {p.pos++;n,e:=p.parseExpression();if e!=nil{return nil,e};p.skipSpace();if p.pos>=len(p.input)||p.input[p.pos]!=')'{return nil,fmt.Errorf("missing closing parenthesis")};p.pos++;return n,nil};start:=p.pos;if p.input[p.pos]=='+'||p.input[p.pos]=='-' {p.pos++};for p.pos<len(p.input)&&((p.input[p.pos]>='0'&&p.input[p.pos]<='9')||p.input[p.pos]=='.'||p.input[p.pos]==','||p.input[p.pos]=='_'){p.pos++};if start==p.pos{return nil,fmt.Errorf("expected a value near %q",p.input[p.pos:])};numberText:=p.input[start:p.pos];unitStart:=p.pos;p.skipSpace();for p.pos<len(p.input)&&isUnitChar(p.input[p.pos]){p.pos++};if p.pos>unitStart {q,err:=unit.Parse(numberText+" "+strings.TrimSpace(p.input[unitStart:p.pos]));if err==nil{return QuantityNode{Quantity:q.Value.(unit.Quantity)},nil}};p.pos=start;n,e:=ParseAST(p.input[p.pos:]);if e!=nil{return nil,e};return n,nil}
-func isUnitChar(c byte)bool{return (c>='a'&&c<='z')||c=='°'||c=='/' }
+type quantityParser struct { input string; pos int }
+func (p *quantityParser) skipSpace() { for p.pos < len(p.input) && p.input[p.pos] == ' ' { p.pos++ } }
+func (p *quantityParser) parseExpression() (Node, error) {
+	left, err := p.parseTerm(); if err != nil { return nil, err }
+	for { p.skipSpace(); if p.pos >= len(p.input) || (p.input[p.pos] != '+' && p.input[p.pos] != '-') { break }; op:=Add; if p.input[p.pos]=='-' { op=Subtract }; p.pos++; right,err:=p.parseTerm();if err!=nil{return nil,err};left=Binary{Left:left,Op:op,Right:right} }
+	return left,nil
+}
+func (p *quantityParser) parseTerm() (Node, error) {
+	left, err := p.parseFactor(); if err != nil { return nil, err }
+	for { p.skipSpace(); if p.pos >= len(p.input) || (p.input[p.pos] != '*' && p.input[p.pos] != '/') { break }; op:=Multiply;if p.input[p.pos]=='/' {op=Divide};p.pos++;right,err:=p.parseFactor();if err!=nil{return nil,err};left=Binary{Left:left,Op:op,Right:right} }
+	return left,nil
+}
+func (p *quantityParser) parseFactor() (Node, error) {
+	p.skipSpace(); if p.pos>=len(p.input){return nil,fmt.Errorf("expected a value")}
+	if p.input[p.pos]=='(' { p.pos++;n,err:=p.parseExpression();if err!=nil{return nil,err};p.skipSpace();if p.pos>=len(p.input)||p.input[p.pos]!=')'{return nil,fmt.Errorf("missing closing parenthesis")};p.pos++;return n,nil }
+	if p.input[p.pos]=='+'||p.input[p.pos]=='-' { op:=p.input[p.pos];p.pos++;n,err:=p.parseFactor();if err!=nil{return nil,err};if op=='-'{return Unary{Op:Subtract,Value:n},nil};return n,nil }
+	start:=p.pos
+	for p.pos<len(p.input)&&p.input[p.pos]!='+'&&p.input[p.pos]!='-'&&p.input[p.pos]!='*'&&p.input[p.pos]!='/'&&p.input[p.pos]!='('&&p.input[p.pos]!=')'{p.pos++}
+	text:=strings.TrimSpace(p.input[start:p.pos]);if text==""{return nil,fmt.Errorf("expected a value")}
+	if parsed,err:=unit.Parse(text);err==nil { quantity,ok:=parsed.Value.(unit.Quantity);if !ok{return nil,fmt.Errorf("unit interpreter returned unexpected value %T",parsed.Value)};return QuantityNode{Quantity:quantity},nil }
+	if parsed,err:=number.Parse(text);err==nil{return Number{Value:parsed.Value},nil}
+	return nil,fmt.Errorf("invalid expression value %q",text)
+}

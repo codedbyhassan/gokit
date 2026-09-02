@@ -35,6 +35,7 @@ type Result struct {
 }
 
 var quantityExpressionPattern = regexp.MustCompile(`^(.+?)\s+(plus|minus)\s+(.+)$`)
+var compactQuantityPattern = regexp.MustCompile(`^[+-]?(?:\d+(?:\.\d+)?|\.\d+)\s*[a-z°]+$`)
 var agePattern = regexp.MustCompile(`^how old is(?: someone)?(?: born)?\s+(.+)$`)
 
 func Parse(input string) (Result, error) {
@@ -74,6 +75,19 @@ func ParseAt(input string, asOf time.Time) (Result, error) {
 
 	if _, err := number.Parse(clean); err == nil {
 		return Result{OriginalInput: original}, interpret.ErrUnrecognizedInput
+	}
+
+	// Keep the legacy compact quantity form (for example, "5kg plus 200g")
+	// on the calculator.Result path. Natural-language quantities such as
+	// "five kilograms plus two hundred grams" use the typed quantity engine
+	// below. This prevents the quantity AST from changing the established API
+	// contract for compact numeric/unit expressions.
+	if m := quantityExpressionPattern.FindStringSubmatch(clean); len(m) == 4 &&
+		compactQuantityPattern.MatchString(strings.TrimSpace(m[1])) &&
+		compactQuantityPattern.MatchString(strings.TrimSpace(m[3])) {
+		if r, err := calculateQuantities(m[1], m[2], m[3], original); err == nil {
+			return r, nil
+		}
 	}
 
 	if node, err := expression.ParseQuantityAST(clean); err == nil {

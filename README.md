@@ -35,6 +35,15 @@ For example, the date interpreter can understand:
 11 November 2011
 ```
 
+The `interpret/intent` package adds a higher-level command layer that composes those interpreters into requests such as:
+
+```text
+what's 20% of 500?
+convert 10 miles to km
+how old is someone born 11-11-2011
+calculate 5kg plus 200g
+```
+
 The goal is not to pretend GoKit is an LLM. It is to provide deterministic, explainable, testable intelligence that can be extended by domain-specific interpreters.
 
 ## Architecture
@@ -44,7 +53,7 @@ Human Input
     ↓
 Normalizer
     ↓
-Interpreter
+Intent / Domain Interpreter
     ↓
 Candidates + Confidence
     ↓
@@ -56,18 +65,38 @@ GoKit Package
 This keeps input interpretation separate from business logic. For example:
 
 ```text
-"11-11-2011"
-      ↓
-interpret/date
-      ↓
-time.Time
-      ↓
-age.Calculate
+"how old is someone born 11-11-2011"
+                 ↓
+        interpret/intent
+                 ↓
+          interpret/date
+                 ↓
+             time.Time
+                 ↓
+            age.Calculate
+                 ↓
+            age.Result
+```
+
+Another example composes measurements before arithmetic:
+
+```text
+"calculate 5kg plus 200g"
+          ↓
+    parse quantities
+          ↓
+     normalize units
+          ↓
+       calculate
+          ↓
+      5.2 kilograms
 ```
 
 ## Philosophy
 
 GoKit turns small programming exercises into reusable, testable, exported Go packages that can be consumed by CLIs, APIs, web applications, and larger systems.
+
+The intelligence layer follows a **bounded intelligence** principle: prefer deterministic interpretation, explicit confidence, reusable domain logic, and safe failure over silent guessing.
 
 ## Status
 

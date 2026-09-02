@@ -10,7 +10,7 @@ import (
 
 // ParseQuantityAST parses arithmetic containing quantities and scalar values.
 func ParseQuantityAST(input string) (Node, error) {
-	clean := normalize(input)
+	clean := normalizeQuantityExpression(input)
 	clean = strings.TrimSpace(strings.TrimPrefix(clean, "what is "))
 	clean = strings.TrimSuffix(clean, "?")
 	if clean == "" { return nil, fmt.Errorf("empty expression") }
@@ -20,6 +20,16 @@ func ParseQuantityAST(input string) (Node, error) {
 	p.skipSpace()
 	if p.pos != len(p.input) { return nil, fmt.Errorf("unexpected input near %q", p.input[p.pos:]) }
 	return n, nil
+}
+
+func normalizeQuantityExpression(input string) string {
+	clean := strings.Join(strings.Fields(strings.ToLower(strings.TrimSpace(input))), " ")
+	clean = strings.TrimSuffix(clean, "?")
+	clean = strings.NewReplacer(
+		"multiplied by", "*", "divided by", "/", "plus", "+", "added to", "+",
+		"add to", "+", "minus", "-", "subtract from", "-", "times", "*",
+	).Replace(clean)
+	return strings.Join(strings.Fields(clean), " ")
 }
 
 type quantityParser struct { input string; pos int }

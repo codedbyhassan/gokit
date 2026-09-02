@@ -104,9 +104,42 @@ Explainable Plan
 
 `pipeline.ParseAt` accepts an explicit reference time so contextual operations such as age calculation are deterministic and testable. The result preserves both the original interpretation and the executed value.
 
+## Go Frontend
+
+GoKit now includes a fully Go-native, server-rendered web frontend. It uses Go's `html/template`, `embed`, and standard `net/http` packages — no Node, React, JavaScript framework, or frontend build step is required.
+
+Start it with:
+
+```bash
+go run ./cmd/gokit --web --addr :8080
+```
+
+Then open `http://localhost:8080` in a browser. The interface provides:
+
+- Natural-language input
+- Example prompts
+- Live interpretation through the Go pipeline
+- Result and confidence display
+- Assumptions when the interpreter makes them
+- Explainable execution plan
+- Responsive dark interface
+- Embedded static assets for a single Go binary deployment
+
+Frontend source lives under `web/frontend/`:
+
+```text
+web/frontend/
+├── frontend.go
+├── frontend_test.go
+├── templates/
+│   └── index.html
+└── static/
+    └── app.css
+```
+
 ## API & CLI
 
-GoKit can be embedded directly as a Go library, used from the `gokit` command, or exposed through the HTTP/JSON adapter.
+GoKit can be embedded directly as a Go library, used from the `gokit` command, exposed through the HTTP/JSON adapter, or served as a browser application.
 
 Start the HTTP API:
 
@@ -114,7 +147,13 @@ Start the HTTP API:
 go run ./cmd/gokit --serve --addr :8080
 ```
 
-Then send human input:
+Start the Go frontend:
+
+```bash
+go run ./cmd/gokit --web --addr :8080
+```
+
+Then send human input to the API:
 
 ```bash
 curl -X POST http://localhost:8080/v1/interpret \
@@ -156,7 +195,8 @@ interpret/
 └── pipeline/      unified interpretation + execution boundary
 
 api/http/           HTTP/JSON transport adapter
-cmd/gokit/          CLI + API server entrypoint
+cmd/gokit/          CLI + API + web entrypoint
+web/frontend/       Go-native server-rendered frontend
 tests/integration/  cross-package integration tests
 ```
 
@@ -176,6 +216,8 @@ Typed Value
 Execution
     ↓
 Explainable Result
+    ↓
+Go CLI / HTTP API / Web Frontend
 ```
 
 The goal is not to pretend GoKit is an LLM. It provides deterministic, explainable, testable intelligence that can be extended by domain-specific interpreters.
@@ -199,5 +241,7 @@ Phase 4 — Intent, Router & Unified Execution Pipeline: **complete**
 Phase 5 — Production Hardening: **complete**
 
 Phase 6 — API, CLI & SDK Surface: **complete**
+
+Phase 6.5 — Go-Native Web Frontend: **complete**
 
 Overall project: 🚧 Early development

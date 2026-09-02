@@ -36,7 +36,7 @@ func Parse(input string) (interpret.Result[float64], error) {
 	clean := strings.ToLower(strings.TrimSpace(input))
 	clean = strings.ReplaceAll(clean, ",", "")
 	clean = strings.ReplaceAll(clean, "_", "")
-	clean = strings.TrimSpace(clean)
+	clean = strings.Join(strings.Fields(clean), " ")
 
 	if clean == "" {
 		return interpret.Result[float64]{OriginalInput: original}, interpret.ErrEmptyInput
@@ -85,13 +85,10 @@ func parseSuffixed(input string) (float64, bool) {
 
 	parts := strings.Fields(input)
 	if len(parts) == 2 {
-		if scale, ok := scaleWords[parts[1]]; ok {
-			n := strings.ReplaceAll(parts[0], " ", "")
-			if numeric.MatchString(n) {
-				value, err := strconv.ParseFloat(n, 64)
-				if err == nil {
-					return value * scale, true
-				}
+		if scale, ok := scaleWords[parts[1]]; ok && numeric.MatchString(parts[0]) {
+			value, err := strconv.ParseFloat(parts[0], 64)
+			if err == nil {
+				return value * scale, true
 			}
 		}
 	}

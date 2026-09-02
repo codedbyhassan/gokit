@@ -51,8 +51,6 @@ func ParseAt(input string, asOf time.Time) (Result, error) {
 	if m := agePattern.FindStringSubmatch(clean); len(m) == 2 {
 		birth, err := date.Parse(m[1])
 		if err != nil {
-			// Age parsing is contextual: an invalid birth date must not be
-			// silently reinterpreted as an unrelated command.
 			return Result{OriginalInput: original}, fmt.Errorf("invalid birth date: %v", err)
 		}
 		v, err := age.Calculate(birth.Value, asOf)
@@ -74,18 +72,15 @@ func ParseAt(input string, asOf time.Time) (Result, error) {
 
 	clean = stripCommandPrefix(clean)
 
-	// A bare number belongs to the number interpreter, not the calculation
-	// intent. This keeps inputs such as "1.5k" from being misclassified.
 	if _, err := number.Parse(clean); err == nil {
 		return Result{OriginalInput: original}, interpret.ErrUnrecognizedInput
 	}
 
-	// Preserve typed quantity semantics for natural quantity expressions.
 	if node, err := expression.ParseQuantityAST(clean); err == nil {
 		if q, err := expression.EvaluateQuantity(node); err == nil && q.Unit.Name != "" {
 			return Result{
 				Kind:          Calculate,
-				Value:         calculator.Result{Value: q.Value, Operation: calculator.Add},
+				Value:         q,
 				OriginalInput: original,
 				Format:        "quantity expression",
 				Confidence:    .99,

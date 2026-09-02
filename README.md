@@ -1,112 +1,230 @@
 # GoKit
 
-A collection of robust, reusable Go utilities and components — built from simple ideas into production-ready building blocks for larger Go applications.
+> Deterministic, explainable Go utilities with a human-input interpretation layer.
 
-## Packages
+[![Go Reference](https://pkg.go.dev/badge/github.com/codedbyhassan/gokit.svg)](https://pkg.go.dev/github.com/codedbyhassan/gokit)
+[![CI](https://github.com/codedbyhassan/gokit/actions/workflows/ci.yml/badge.svg)](https://github.com/codedbyhassan/gokit/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/codedbyhassan/gokit)](https://goreportcard.com/report/github.com/codedbyhassan/gokit)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-- Calculator
-- Number Guessing
-- Temperature Conversion
-- Unit Conversion
-- Interest Calculations
-- BMI
-- Age Calculations
-- Quiz Engine
+GoKit is a collection of reusable Go packages that started with small utilities and evolved into a deterministic interpretation and execution engine.
 
-## Intelligent Interpretation
+It is designed for applications that need to accept useful human input without turning the core logic into an opaque AI system. GoKit normalizes input, parses it into typed values, ranks interpretations with confidence, reports ambiguity, executes supported operations, and preserves an explainable plan.
 
-GoKit accepts useful human input without forcing every caller into one exact format.
+**No cloud service. No LLM dependency. No database required.**
 
-The `interpret` package provides a shared interpretation layer that can normalize input, detect patterns, generate interpretations, score confidence, report ambiguity, and return typed Go values.
+## Why GoKit?
 
-The `interpret/intent` package composes those interpreters into requests such as:
+Most utility libraries assume perfectly formatted input. Real applications rarely receive it.
 
-```text
-what's 20% of 500?
-convert 10 miles to km
-how old is someone born 11-11-2011
-calculate 5kg plus 200g
-five kilograms plus two hundred grams
-```
-
-## Quantity Engine
-
-GoKit's quantity engine supports natural measurements, compatible-unit arithmetic, conversion, scalar multiplication/division, and dimensional validation.
-
-Examples:
-
-```text
-5kg + 200g                              → 5.2 kg
-five kilograms plus two hundred grams  → 5.2 kg
-10 miles + 5 km                         → 13.106855 mi
-2m * 4                                  → 8 m
-5kg / 2                                 → 2.5 kg
-convert five kilometers to miles        → 3.106855... mi
-```
-
-Supported dimensions include length, mass, temperature, speed, and volume. Unit aliases include symbols, singular/plural names, and common natural-language forms.
-
-The typed APIs are available through `interpret/unit.ParseQuantity`, `interpret/unit.ParseConversion`, and `interpret/expression.EvaluateQuantity`.
-
-## Number Interpretation
-
-The number interpreter accepts both machine-friendly and human-friendly forms:
-
-```text
-1,000                  → 1000
-1.5k                   → 1500
-2.5 million            → 2500000
-twenty five             → 25
-one hundred twenty five → 125
-two point five million  → 2500000
-negative one hundred   → -100
-```
-
-English number parsing uses a bounded grammar rather than silently accepting malformed phrases. Invalid constructions such as `million five`, repeated `hundred`, and incomplete decimals are rejected.
-
-## Unified Pipeline
-
-Applications that want one entry point can use `interpret/pipeline`:
+GoKit lets callers move from rigid calls such as:
 
 ```go
-result, err := pipeline.ParseAt("what is 20% of 500", asOf)
-if err != nil {
-    // handle empty, ambiguous, invalid, or unsupported input
-}
-
-fmt.Println(result.Value)
-fmt.Println(result.Plan.Steps)
+units.Convert(5, "kilometers", "miles")
 ```
 
-The pipeline follows:
+toward human-friendly input such as:
 
 ```text
-Human Input
-    ↓
-Intent Interpreter
-    ↓  (only when a contextual command matches)
-Typed Interpretation
-    ↓
-Execution
-    ↓
-Explainable Plan
-
-If no intent matches:
-    ↓
-Domain Router
-    ↓
-Confidence-ranked Interpreter
-    ↓
-Typed Value / Execution
-    ↓
-Explainable Plan
+convert five kilometers to miles
 ```
 
-`pipeline.ParseAt` accepts an explicit reference time so contextual operations such as age calculation are deterministic and testable. The result preserves both the original interpretation and the executed value.
+while keeping the underlying behavior deterministic and inspectable.
 
-## Go Frontend
+The project follows a **bounded intelligence** principle:
 
-GoKit now includes a fully Go-native, server-rendered web frontend. It uses Go's `html/template`, `embed`, and standard `net/http` packages — no Node, React, JavaScript framework, or frontend build step is required.
+- deterministic parsing over probabilistic guessing
+- typed values over unstructured strings
+- explicit confidence over hidden assumptions
+- explicit ambiguity over silent guesses
+- reusable packages over application-specific logic
+- standard-library solutions where practical
+
+## Highlights
+
+- Reusable arithmetic, units, dates, age, BMI, interest, and quiz packages
+- Natural-language number interpretation
+- Arithmetic and percentage expressions
+- Quantity-aware arithmetic and unit conversion
+- Intent detection and confidence-ranked routing
+- Explainable execution plans
+- HTTP/JSON API
+- Command-line interface
+- Go-native browser frontend
+- Browser-local IndexedDB history and saved results
+- Cross-package integration tests
+- Fuzz tests and benchmarks
+- CI for formatting, vetting, tests, race detection, and fuzz smoke coverage
+
+## Quick start
+
+### Requirements
+
+- Go 1.24+
+- Git
+
+Clone the repository:
+
+```bash
+git clone https://github.com/codedbyhassan/gokit.git
+cd gokit
+```
+
+Run the test suite:
+
+```bash
+go test ./...
+```
+
+Run the complete quality checks:
+
+```bash
+make check
+```
+
+## Use GoKit as a library
+
+The unified pipeline is the easiest entry point when an application wants to accept human input:
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/codedbyhassan/gokit/interpret/pipeline"
+)
+
+func main() {
+    result, err := pipeline.Parse("what is 20% of 500")
+    if err != nil {
+        panic(err)
+    }
+
+    fmt.Println(result.Value)
+    fmt.Println(result.Confidence)
+}
+```
+
+For deterministic contextual operations, use `pipeline.ParseAt` with an explicit reference time.
+
+## Human input
+
+GoKit accepts several useful forms without requiring one exact syntax.
+
+### Numbers
+
+```text
+1,000                    → 1000
+1.5k                     → 1500
+2.5 million              → 2500000
+twenty five               → 25
+one hundred twenty five   → 125
+two point five million    → 2500000
+negative one hundred      → -100
+```
+
+Malformed constructions are rejected rather than silently interpreted.
+
+### Expressions
+
+```text
+20% of 500
+25 + 17 * 2
+what is 1000 / 8
+20% increase on 500
+```
+
+The expression engine respects normal arithmetic precedence and exposes typed AST nodes for callers that need more control.
+
+### Quantities
+
+```text
+5kg + 200g
+five kilograms plus two hundred grams
+25 km to miles
+convert five kilometers to miles
+2m * 4
+5kg / 2
+```
+
+Quantity operations validate dimensions and perform compatible-unit conversion where appropriate.
+
+### Dates and age
+
+GoKit can interpret common numeric and named date formats, including formats such as:
+
+```text
+11-11-2011
+2011-11-11
+11-2011-11
+11 November 2011
+```
+
+When a date is genuinely ambiguous, the interpretation layer can report that ambiguity instead of silently choosing a meaning.
+
+## Architecture
+
+```text
+                           GoKit
+                             │
+                      Human Input
+                             │
+                       Normalization
+                             │
+                 ┌───────────┴───────────┐
+                 │                       │
+             Intent Layer          Domain Router
+                 │                       │
+                 └───────────┬───────────┘
+                             │
+                  Candidates + Confidence
+                             │
+                       Typed Value
+                             │
+                         Execution
+                             │
+                    Explainable Plan
+                             │
+          ┌──────────────────┼──────────────────┐
+          │                  │                  │
+         CLI             HTTP/JSON          Web UI
+                                              │
+                                          IndexedDB
+                                        browser-local data
+```
+
+Repository layout:
+
+```text
+gokit/
+├── calculator/             arithmetic primitives
+├── units/                  unit definitions and conversions
+├── interpret/
+│   ├── date/              date interpretation
+│   ├── number/            human number interpretation
+│   ├── expression/        arithmetic and quantity ASTs
+│   ├── unit/              quantity/conversion interpretation
+│   ├── intent/            natural-language intent composition
+│   ├── router/            confidence-ranked routing
+│   ├── plan/              explainable execution plans
+│   └── pipeline/          unified interpretation boundary
+├── api/http/               HTTP/JSON adapter
+├── cmd/gokit/              application entrypoint
+├── web/frontend/           Go-native web interface
+├── examples/               usage examples
+├── docs/                   project documentation
+├── internal/               private implementation helpers
+├── tests/integration/      cross-package integration tests
+├── .github/                CI and contribution automation
+├── LICENSE
+├── CONTRIBUTING.md
+├── CODE_OF_CONDUCT.md
+└── SECURITY.md
+```
+
+## Web application
+
+GoKit includes a server-rendered frontend built entirely with Go's standard library and browser APIs. There is no Node.js toolchain or frontend build step.
 
 Start it with:
 
@@ -114,46 +232,32 @@ Start it with:
 go run ./cmd/gokit --web --addr :8080
 ```
 
-Then open `http://localhost:8080` in a browser. The interface provides:
+Open `http://localhost:8080`.
 
+The interface provides:
+
+- AI-style conversational workspace
 - Natural-language input
-- Example prompts
-- Live interpretation through the Go pipeline
-- Result and confidence display
-- Assumptions when the interpreter makes them
-- Explainable execution plan
-- Responsive dark interface
-- Embedded static assets for a single Go binary deployment
+- Live GoKit execution
+- Confidence and assumptions
+- Explainable execution steps
+- Copy and save actions
+- Local history
+- Saved results
+- Dark/light theme preference
+- Responsive mobile layout
 
-Frontend source lives under `web/frontend/`:
+Browser data is stored in **IndexedDB**. GoKit does not require an online database or account for the web experience.
 
-```text
-web/frontend/
-├── frontend.go
-├── frontend_test.go
-├── templates/
-│   └── index.html
-└── static/
-    └── app.css
-```
+## HTTP API
 
-## API & CLI
-
-GoKit can be embedded directly as a Go library, used from the `gokit` command, exposed through the HTTP/JSON adapter, or served as a browser application.
-
-Start the HTTP API:
+Run the API:
 
 ```bash
 go run ./cmd/gokit --serve --addr :8080
 ```
 
-Start the Go frontend:
-
-```bash
-go run ./cmd/gokit --web --addr :8080
-```
-
-Then send human input to the API:
+Interpret input:
 
 ```bash
 curl -X POST http://localhost:8080/v1/interpret \
@@ -161,13 +265,33 @@ curl -X POST http://localhost:8080/v1/interpret \
   -d '{"input":"what is 20% of 500"}'
 ```
 
-The API returns the interpreted/executed value together with confidence, assumptions, and the explainable execution plan. See `api/http/README.md` for the transport contract.
+The API exposes the interpreted result together with confidence, assumptions, and an execution plan.
 
-## Production Hardening
+See [`api/http/README.md`](api/http/README.md) for the transport contract.
 
-GoKit includes cross-package integration coverage, parser fuzz tests, performance benchmarks, and automated CI checks for formatting, vetting, normal tests, and race detection.
+## CLI
 
-Run the same checks locally with:
+The command can also interpret input directly:
+
+```bash
+go run ./cmd/gokit "what is 20% of 500"
+```
+
+For a long-running service:
+
+```bash
+go run ./cmd/gokit --serve --addr :8080
+```
+
+For the browser application:
+
+```bash
+go run ./cmd/gokit --web --addr :8080
+```
+
+## Testing and quality
+
+GoKit treats tests as part of the package API contract.
 
 ```bash
 go test ./...
@@ -175,73 +299,62 @@ go test -race ./...
 go vet ./...
 ```
 
-Benchmarks are available with:
+Formatting:
+
+```bash
+gofmt -w .
+```
+
+Benchmarks:
 
 ```bash
 go test -bench=. ./...
 ```
 
-## Architecture
+Fuzzing examples:
 
-```text
-interpret/
-├── date/          date interpretation
-├── number/        human number interpretation
-├── expression/    arithmetic + quantity ASTs
-├── unit/          measurement + conversion interpretation
-├── intent/        natural-language command composition
-├── router/        confidence-ranked domain routing
-├── plan/          explainable execution plans
-└── pipeline/      unified interpretation + execution boundary
-
-api/http/           HTTP/JSON transport adapter
-cmd/gokit/          CLI + API + web entrypoint
-web/frontend/       Go-native server-rendered frontend
-tests/integration/  cross-package integration tests
+```bash
+go test ./interpret/number -run '^$' -fuzz Fuzz -fuzztime=10s
 ```
 
-The central model is:
+CI runs formatting checks, `go vet`, the complete test suite, race detection, and a short fuzz smoke test on pushes to `main` and pull requests.
 
-```text
-User Input
-    ↓
-Normalizer
-    ↓
-Intent / Domain Interpreter
-    ↓
-Candidates + Confidence
-    ↓
-Typed Value
-    ↓
-Execution
-    ↓
-Explainable Result
-    ↓
-Go CLI / HTTP API / Web Frontend
-```
+## Extending GoKit
 
-The goal is not to pretend GoKit is an LLM. It provides deterministic, explainable, testable intelligence that can be extended by domain-specific interpreters.
+New domain interpreters should normally:
 
-## Philosophy
+1. normalize input
+2. parse into a typed value
+3. expose useful confidence/assumption metadata
+4. reject malformed input
+5. cover normal, invalid, boundary, and ambiguous cases
+6. integrate with the router or intent layer when appropriate
+7. document public APIs and examples
 
-GoKit turns small programming exercises into reusable, testable, exported Go packages that can be consumed by CLIs, APIs, web applications, and larger systems.
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a pull request.
 
-The intelligence layer follows a **bounded intelligence** principle: prefer deterministic interpretation, explicit confidence, reusable domain logic, and safe failure over silent guessing.
+## Project status
 
-## Status
+GoKit is actively evolving and is **not yet a stable v1 API**. Public APIs may change before the first stable major release.
 
-Phase 1 — Expression Engine: **complete**
+Current development areas:
 
-Phase 2 — Quantity Engine: **complete**
+- core reusable utilities — established
+- interpretation engine — established
+- unified pipeline — established
+- HTTP/CLI surface — established
+- local-first web interface — established
+- broader domain interpreters — ongoing
+- API stabilization — ongoing
 
-Phase 3 — Human Number Interpretation: **complete**
+## License
 
-Phase 4 — Intent, Router & Unified Execution Pipeline: **complete**
+GoKit is released under the [MIT License](LICENSE).
 
-Phase 5 — Production Hardening: **complete**
+## Security
 
-Phase 6 — API, CLI & SDK Surface: **complete**
+Please do not disclose vulnerabilities in public issues. See [`SECURITY.md`](SECURITY.md) for the reporting policy.
 
-Phase 6.5 — Go-Native Web Frontend: **complete**
+## Contributing
 
-Overall project: 🚧 Early development
+Contributions, bug reports, tests, documentation improvements, and focused feature proposals are welcome. See [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
